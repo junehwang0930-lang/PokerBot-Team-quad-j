@@ -1,0 +1,40 @@
+{
+  "paired_field_gain": 0.917875,
+  "seed_block_ci95": [
+    0.5171001256186656,
+    1.3186498743813344
+  ],
+  "seed_blocks": [
+    0.9494166666666667,
+    0.8863333333333332
+  ],
+  "matches": 24,
+  "per_opponent": {
+    "always_pot": {
+      "numpy_guard": 8.42125,
+      "champion": 8.534749999999999
+    },
+    "calling_station": {
+      "numpy_guard": 11.97025,
+      "champion": 11.3185
+    },
+    "jish_new": {
+      "numpy_guard": 0.267,
+      "champion": -2.81075
+    },
+    "pressure": {
+      "numpy_guard": 0.94,
+      "champion": 0.49424999999999997
+    },
+    "random": {
+      "numpy_guard": 10.234,
+      "champion": 9.151250000000001
+    },
+    "trapper": {
+      "numpy_guard": 2.90675,
+      "champion": 2.544
+    }
+  },
+  "max_direct_half_seconds": 7.255484490024173,
+  "source_sha256": "81832887c80955c075192f299bdca459289c00108d70ee56e2db349f7ce9206e"
+}
