@@ -39,8 +39,8 @@ from game import Action, AgentConfig, HandResult, Observation, Street
 warmup()
 
 # rename as your team/bot's name
-PARTICIPANT = "YOUR_TEAM_NAME"  # Set this to your registered team name.
-AGENT_NAME = "ShortDeckEquity"
+PARTICIPANT = "Team-quad-j"  # Set this to your registered team name.
+AGENT_NAME = "AdaptiveProfit"
 
 
 # ===== YOUR CODE HERE =====
@@ -576,7 +576,7 @@ def _simulation(obs, memory, active):
     return cache
 
 
-def _range_weights(obs, memory, cache):
+def _trained_range_weights(obs, memory, cache):
     weights = np.ones(len(cache['wins']))
     bets = [0,0]
     street = None
@@ -608,10 +608,10 @@ def _range_weights(obs, memory, cache):
         bets[who] = a.street_total
     # Preserve an epsilon mass for bluffs and imperfect opponent assumptions.
     weights /= max(float(weights.max()), 1e-12)
-    return weights + 0.015
+    return weights ** 1.0332350882477297 + 0.015
 
 
-def _preflop_action(obs, memory, equity):
+def _trained_preflop_action(obs, memory, equity):
     aggr, fold, opening, raising, selective = _profile(memory, 0)
     raises = [a for a in (Action.RAISE_HALF, Action.RAISE_POT) if a in obs.legal_actions]
     cost = min(obs.to_call, obs.my_stack)
@@ -622,9 +622,9 @@ def _preflop_action(obs, memory, equity):
         # Avoid paying repeatedly with a weak range, but defend the excellent
         # immediate price of small bets in this high-equity Omaha variant.
         cushion = 0.075 + (0.02 if not obs.is_button else 0)
-        if equity < price+cushion:
+        if equity < price+cushion*0.11729540573056418:
             return Action.FOLD
-        if raises and equity > (0.61 if aggr < 0.6 else 0.63):
+        if raises and equity > (0.6591356812160152 if aggr < 0.6 else 0.6791356812160152):
             return raises[-1]
         return Action.CHECK_CALL
     if not raises:
@@ -635,16 +635,16 @@ def _preflop_action(obs, memory, equity):
     if aggr > 0.65:
         return raises[-1] if equity > 0.64 else Action.CHECK_CALL
     if obs.is_button:
-        if equity >= 0.54:
+        if equity >= 0.5358324607084399:
             return raises[-1] if equity > 0.59 else raises[0]
         if equity < 0.34 and cost:
             return Action.FOLD
-    elif equity >= 0.56:
+    elif equity >= 0.55583246070844:
         return raises[-1]
     return Action.CHECK_CALL
 
 
-def _postflop_action(obs, memory, cache, weights):
+def _trained_postflop_action(obs, memory, cache, weights):
     wins = cache['wins']
     weight_sum = float(weights.sum())
     equity = float(weights @ wins / weight_sum)
@@ -658,7 +658,7 @@ def _postflop_action(obs, memory, cache, weights):
         cushion += 0.012
     call_ev = equity*(obs.pot+cost)-cost
     best = Action.CHECK_CALL
-    if cost and equity < price+cushion and not cache['nuts']:
+    if cost and equity < price+cushion*0.11729540573056418 and not cache['nuts']:
         best = Action.FOLD
     # A free check retains showdown value; folding has zero incremental EV.
     baseline = max(0.0, call_ev) if cost else equity*obs.pot
@@ -683,7 +683,7 @@ def _postflop_action(obs, memory, cache, weights):
         when_called = float(called_weights @ wins / max(1e-12, call_mass))
         bet_ev = folding*obs.pot + (1-folding)*(
             when_called*(obs.pot+invest+opp_call)-invest)
-        threshold = 0.54 if closed else 0.57+min(0.03,spr*0.008)
+        threshold = (0.54 if closed else 0.57+min(0.03,spr*0.008)) + -0.061053986982071436
         if fold < 0.09:
             threshold -= 0.025
         value = when_called >= threshold or cache['nuts']
@@ -691,7 +691,7 @@ def _postflop_action(obs, memory, cache, weights):
         bluff = (equity < 0.38 and folding > (0.42 if size<0.8 else 0.56)
                  and obs.raises_this_street <= 1)
         margin = max(0.35, 0.025*obs.pot) + (0 if closed else 0.02*invest)
-        if (value or bluff) and bet_ev > best_ev+margin:
+        if (value or bluff) and bet_ev > best_ev+margin*0.02300226380185949:
             best_ev, best = bet_ev, action
     return best
 
@@ -793,6 +793,147 @@ def on_hand_end(result: HandResult, memory: dict) -> None:
                         memory['showdown_reads'][0] += percentile
                         memory['showdown_reads'][1] += 1
     memory['active'] = None
+
+
+# Apply the offline best-response parameters only in their validated domain.
+# The 0.65 aggression threshold already defines maniacs in the original bot.
+def _frozen_range_weights(obs, memory, cache):
+    weights = np.ones(len(cache['wins']))
+    bets = [0,0]
+    street = None
+    for a in obs.action_history:
+        if a.street != street:
+            street = a.street
+            bets = [0,0]
+            if street == Street.PREFLOP:
+                cfg = memory['config']
+                bets = ([cfg.small_blind,cfg.big_blind] if obs.is_button
+                        else [cfg.big_blind,cfg.small_blind])
+        who = 0 if a.is_me else 1
+        facing = bets[1-who] > bets[who]
+        if not a.is_me and int(street) in cache['quality']:
+            aggr, fold, opening, raising, selective = _profile(memory, street)
+            q = cache['quality'][int(street)]
+            if a.action in (Action.RAISE_HALF, Action.RAISE_POT):
+                rate = raising if facing else opening
+                cutoff = max(0.08, min(0.92, 1-rate))
+                strong = 1/(1+np.exp(-(q-cutoff)*11))
+                likelihood = (1-selective) + selective*(0.12+0.88*strong)
+            elif facing:
+                keep = np.clip((q-fold+0.22)/0.44, 0.10, 1.0)
+                call_selectivity = selective*min(1.0, fold/0.25)
+                likelihood = (1-call_selectivity) + call_selectivity*keep
+            else:
+                likelihood = 1 - selective*min(0.65,opening)*q*q
+            weights *= likelihood
+        bets[who] = a.street_total
+    # Preserve an epsilon mass for bluffs and imperfect opponent assumptions.
+    weights /= max(float(weights.max()), 1e-12)
+    return weights + 0.015
+
+
+
+def _frozen_preflop_action(obs, memory, equity):
+    aggr, fold, opening, raising, selective = _profile(memory, 0)
+    raises = [a for a in (Action.RAISE_HALF, Action.RAISE_POT) if a in obs.legal_actions]
+    cost = min(obs.to_call, obs.my_stack)
+    price = cost/max(1, obs.pot+cost)
+    if obs.opp_stack == 0 or cost == obs.my_stack:
+        return Action.CHECK_CALL if equity >= price+0.005 else Action.FOLD
+    if cost > obs.big_blind:
+        # Avoid paying repeatedly with a weak range, but defend the excellent
+        # immediate price of small bets in this high-equity Omaha variant.
+        cushion = 0.075 + (0.02 if not obs.is_button else 0)
+        if equity < price+cushion:
+            return Action.FOLD
+        if raises and equity > (0.61 if aggr < 0.6 else 0.63):
+            return raises[-1]
+        return Action.CHECK_CALL
+    if not raises:
+        return Action.CHECK_CALL
+    if fold > 0.62:
+        return raises[0]
+    # Against a compulsive raiser, see flops cheaply and let it build pots.
+    if aggr > 0.65:
+        return raises[-1] if equity > 0.64 else Action.CHECK_CALL
+    if obs.is_button:
+        if equity >= 0.54:
+            return raises[-1] if equity > 0.59 else raises[0]
+        if equity < 0.34 and cost:
+            return Action.FOLD
+    elif equity >= 0.56:
+        return raises[-1]
+    return Action.CHECK_CALL
+
+
+
+def _frozen_postflop_action(obs, memory, cache, weights):
+    wins = cache['wins']
+    weight_sum = float(weights.sum())
+    equity = float(weights @ wins / weight_sum)
+    cost = min(obs.to_call, obs.my_stack)
+    price = cost/max(1,obs.pot+cost)
+    spr = min(obs.my_stack-cost, obs.opp_stack)/max(1,obs.pot+cost)
+    aggr, fold, opening, raising, selective = _profile(memory, obs.street)
+    closed = obs.street == Street.RIVER or obs.opp_stack == 0 or cost == obs.my_stack
+    cushion = 0.006 if closed else min(0.075, 0.025+0.018*spr)
+    if not obs.is_button and not closed:
+        cushion += 0.012
+    call_ev = equity*(obs.pot+cost)-cost
+    best = Action.CHECK_CALL
+    if cost and equity < price+cushion and not cache['nuts']:
+        best = Action.FOLD
+    # A free check retains showdown value; folding has zero incremental EV.
+    baseline = max(0.0, call_ev) if cost else equity*obs.pot
+    best_ev = baseline
+    q = cache['quality'][int(obs.street)]
+    for action in (Action.RAISE_HALF, Action.RAISE_POT):
+        if action not in obs.legal_actions:
+            continue
+        invest = min(obs.my_stack, obs.raise_to[action]-obs.my_bet)
+        opp_call = min(obs.opp_stack, max(0, obs.my_bet+invest-obs.opp_bet))
+        # Smooth response model, shrunk toward measured fold frequency.
+        size = opp_call/max(1,obs.pot+cost)
+        f = max(0.015, min(0.95, fold + 0.10*(size-0.65)))
+        if fold < 0.09:
+            f = fold
+        selected_call = np.clip((q-f+0.20)/0.40, 0.02, 1.0)
+        call_selectivity = selective*min(1.0, f/0.25)
+        response = (1-call_selectivity)*(1-f) + call_selectivity*selected_call
+        called_weights = weights*response
+        call_mass = float(called_weights.sum())
+        folding = 1-call_mass/weight_sum
+        when_called = float(called_weights @ wins / max(1e-12, call_mass))
+        bet_ev = folding*obs.pot + (1-folding)*(
+            when_called*(obs.pot+invest+opp_call)-invest)
+        threshold = 0.54 if closed else 0.57+min(0.03,spr*0.008)
+        if fold < 0.09:
+            threshold -= 0.025
+        value = when_called >= threshold or cache['nuts']
+        # Bluff only with plausible fold equity and little showdown value.
+        bluff = (equity < 0.38 and folding > (0.42 if size<0.8 else 0.56)
+                 and obs.raises_this_street <= 1)
+        margin = max(0.35, 0.025*obs.pot) + (0 if closed else 0.02*invest)
+        if (value or bluff) and bet_ev > best_ev+margin:
+            best_ev, best = bet_ev, action
+    return best
+
+
+
+
+def _range_weights(obs, memory, cache):
+    strategy = _frozen_range_weights if _profile(memory, obs.street)[0] > 0.65 else _trained_range_weights
+    return strategy(obs, memory, cache)
+
+
+def _preflop_action(obs, memory, equity):
+    strategy = _frozen_preflop_action if _profile(memory, obs.street)[0] > 0.65 else _trained_preflop_action
+    return strategy(obs, memory, equity)
+
+
+def _postflop_action(obs, memory, cache, weights):
+    strategy = _frozen_postflop_action if _profile(memory, obs.street)[0] > 0.65 else _trained_postflop_action
+    return strategy(obs, memory, cache, weights)
 
 # ===== END OF YOUR CODE =====
 
