@@ -1,6 +1,6 @@
 # Experimental single-file guarded policies
 
-This branch publishes tested research candidates at the user's request. It does not promote them over the champion on main.
+These files preserve tested research candidates. At the user's request, the higher-sampling candidate is now the root bot for a consolidated ZIP download; the previous champion is backed up under research/previous-champion. This packaging decision does not establish stronger validation.
 
 - Root `agent.py`: higher-sampling guarded policy, SHA256 `81832887c80955c075192f299bdca459289c00108d70ee56e2db349f7ce9206e`.
 - `agent_fast.py` here: faster alternative, SHA256 `7642e9c912638e0ae0ae7406b2c1fdf9064a09278647f115c6f494b3a5b5a9cf`.

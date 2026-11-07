@@ -1,0 +1,55 @@
+{
+  "candidate": "hybrid",
+  "agent_sha256": "c2ee75a50a50799cbef531554ff173613b5f2252934b157dae1e15ddf5f696b1",
+  "table_sha256": "695d95bb00f198badf9bf888775343770b3d7717674a5cac7e95e133d3eef90d",
+  "guard_threshold": 0.65,
+  "development_seeds": [
+    "actual-jish-development-20261107-0",
+    "actual-jish-development-20261107-1",
+    "actual-jish-development-20261107-2"
+  ],
+  "head_seeds": [
+    "guarded-native-final-head-20261107-0",
+    "guarded-native-final-head-20261107-1",
+    "guarded-native-final-head-20261107-2",
+    "guarded-native-final-head-20261107-3",
+    "guarded-native-final-head-20261107-4",
+    "guarded-native-final-head-20261107-5",
+    "guarded-native-final-head-20261107-6",
+    "guarded-native-final-head-20261107-7",
+    "guarded-native-final-head-20261107-8",
+    "guarded-native-final-head-20261107-9"
+  ],
+  "population_seeds": [
+    "guarded-native-final-pop-20261107-0",
+    "guarded-native-final-pop-20261107-1",
+    "guarded-native-final-pop-20261107-2",
+    "guarded-native-final-pop-20261107-3"
+  ],
+  "final_opponents": [
+    "jish_new",
+    "tight",
+    "equity",
+    "holdout_polar",
+    "holdout_trapper",
+    "holdout_pressure",
+    "switcher",
+    "loose",
+    "random",
+    "calling_station",
+    "always_pot",
+    "always_half"
+  ],
+  "weights": "equal1/12 within each seed; four complete paired seed block means for population inference",
+  "gate": "positive head and population lower97.5% Student-t bounds; tournament-score points >=champion; positive baseline match-mean95% intervals and no baseline LOSS; zero fallbacks, compatibility/runtime pass",
+  "confidence": "97.5% per finalist for two finalists; conjunction of profit gates; no additional candidate tuning after final runs",
+  "phase_change": "Original Jish repository supplied before guarded final evaluation. Retain surrogate-table development separately; use original table, exact original Jish opponent, and its read-only-reviewed Practice class for broader holdout testing. No further tuning after final lock.",
+  "advance_to_final": "positive native-table development head mean vschampion, no reliability issues; guard exploitation validated separately in prior development",
+  "correctness_fix": "Skip showdown learning on streets missing from Jish cache after policy switching; interrupted prior development invalidated",
+  "table_source": "650JoshLee/quad-j-jish@b9e58ed3d39460b0254418594bf75ea407f65fec, exact original table",
+  "expected_final_matches": 106,
+  "prior_surrogate_development_seeds": [
+    "hybrid-dev-fixed-20261107-0",
+    "hybrid-dev-fixed-20261107-1"
+  ]
+}
