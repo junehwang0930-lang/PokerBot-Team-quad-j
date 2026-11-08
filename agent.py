@@ -632,12 +632,12 @@ def _decide(obs, memory):
         adjusted = equity - selectivity * min(0.14, 0.035 * opp_raises)
         if raising:
             if obs.raises_this_street == 0:
-                if (obs.is_button and equity >= 0.62) or (not obs.is_button and equity >= 0.56):
+                if (obs.is_button and equity >= 0.6161) or (not obs.is_button and equity >= 0.4693):
                     return Action.RAISE_POT
                 # Steal against observed over-folding without risking a large pot.
                 if p_facing[0] > 0.63:
                     return Action.RAISE_HALF
-            elif adjusted > (0.57 if p_facing[2] < 0.65 else 0.525):
+            elif adjusted > (0.6600 if p_facing[2] < 0.65 else 0.5896):
                 return Action.RAISE_POT
         if free:
             return Action.CHECK_CALL
@@ -649,7 +649,7 @@ def _decide(obs, memory):
             threshold = min(0.495, (obs.my_stack / (obs.pot + 2 * obs.my_stack - obs.to_call)))
         else:
             spr = min(obs.my_stack - cost, obs.opp_stack) / max(1, obs.pot + cost)
-            threshold = odds + (0.10 if spr > 2 else 0.045 if spr > 0.5 else 0.0)
+            threshold = odds + (0.1177 if spr > 2 else 0.0389 if spr > 0.5 else 0.0)
         return Action.CHECK_CALL if adjusted >= threshold else Action.FOLD
     simulation = _simulation(obs, memory)
     weights, strength = _range_weights(obs, memory, simulation['scores'])
@@ -659,11 +659,19 @@ def _decide(obs, memory):
     odds = cost / max(1, obs.pot + cost)
     spr = max(0, min(obs.my_stack - cost, obs.opp_stack)) / max(1, obs.pot + cost)
     # Future betting reduces the value of weak draws out of position.
-    reserve = (0.045 if not obs.is_button else -0.0825) * min(1.0, spr) if st < 3 else -0.08
+    reserve = (0.0729 if not obs.is_button else 0.0300) * min(1.0, spr) if st < 3 else 0.0298
     if not free and equity < odds + reserve:
         return Action.FOLD
     if not raising:
         return Action.CHECK_CALL
+    if (st >= 1 and equity >= 0.6200 and memory['rng'].random() < 0.0406):
+        return Action.CHECK_CALL
+    if equity < 0.3083 and memory['rng'].random() < 0.3882:
+        _adversary_action = Action.RAISE_HALF if free else Action.RAISE_POT
+        if _adversary_action not in obs.legal_actions:
+            _adversary_action = Action.RAISE_POT if free else Action.RAISE_HALF
+        if _adversary_action in obs.legal_actions:
+            return _adversary_action
     # Approximate the continuing range for each available size. Large bets
     # must earn their chips against hands that actually call, not folded hands.
     base_ev = equity * (obs.pot + cost) - cost
@@ -691,7 +699,7 @@ def _decide(obs, memory):
         # medium hands with several streets still to play.
         if st < 3:
             ev -= call_prob * invest * max(0.0, 0.62 - eq_called) * (0.70 if spr > 1 else 0.25)
-        margin = max(0.10, obs.pot * (0.005 if st < 3 else 0.003))
+        margin = max(0.10, obs.pot * (0.0000 if st < 3 else 0.0178))
         if ev > base_ev + margin and ev > best_ev:
             best_action, best_ev = action, ev
     return best_action
